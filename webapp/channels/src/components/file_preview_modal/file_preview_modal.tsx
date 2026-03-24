@@ -27,6 +27,7 @@ import type {FilePreviewComponent} from 'types/store/plugins';
 import FilePreviewModalFooter from './file_preview_modal_footer/file_preview_modal_footer';
 import FilePreviewModalHeader from './file_preview_modal_header/file_preview_modal_header';
 import ImagePreview from './image_preview';
+import ImageControlsBar from './image_controls_bar';
 import PopoverBar from './popover_bar';
 import {isFileInfo, isLinkInfo} from './types';
 import type {LinkInfo} from './types';
@@ -76,6 +77,9 @@ type State = {
     showZoomControls: boolean;
     scale: Record<number, number>;
     translate: Record<number, Translate>;
+    rotation: Record<number, number>;
+    flipHorizontal: Record<number, boolean>;
+    flipVertical: Record<number, boolean>;
     isDragging: boolean;
     content: string;
 };
@@ -128,6 +132,9 @@ export default class FilePreviewModal extends React.PureComponent<Props, State> 
                 acc[index] = {x: 0, y: 0};
                 return acc;
             }, {}),
+            rotation: Utils.fillRecord(0, this.props.fileInfos.length),
+            flipHorizontal: Utils.fillRecord(false, this.props.fileInfos.length),
+            flipVertical: Utils.fillRecord(false, this.props.fileInfos.length),
             isDragging: false,
             content: '',
         };
@@ -264,6 +271,9 @@ export default class FilePreviewModal extends React.PureComponent<Props, State> 
             // when the identity at that index changed (or is brand new).
             const nextScale: Record<number, number> = {};
             const nextTranslate: Record<number, Translate> = {};
+            const nextRotation: Record<number, number> = {};
+            const nextFlipHorizontal: Record<number, boolean> = {};
+            const nextFlipVertical: Record<number, boolean> = {};
             for (let i = 0; i < props.fileInfos.length; i++) {
                 const idUnchanged = state.prevFileIds[i] === nextFileIds[i];
                 nextScale[i] = idUnchanged && state.scale[i] !== undefined ?
@@ -272,9 +282,15 @@ export default class FilePreviewModal extends React.PureComponent<Props, State> 
                 nextTranslate[i] = idUnchanged && state.translate[i] !== undefined ?
                     state.translate[i] :
                     {x: 0, y: 0};
+                nextRotation[i] = idUnchanged && state.rotation[i] !== undefined ? state.rotation[i] : 0;
+                nextFlipHorizontal[i] = idUnchanged ? Boolean(state.flipHorizontal[i]) : false;
+                nextFlipVertical[i] = idUnchanged ? Boolean(state.flipVertical[i]) : false;
             }
             updatedState.scale = nextScale;
             updatedState.translate = nextTranslate;
+            updatedState.rotation = nextRotation;
+            updatedState.flipHorizontal = nextFlipHorizontal;
+            updatedState.flipVertical = nextFlipVertical;
         }
         return Object.keys(updatedState).length ? updatedState : null;
     }
@@ -417,6 +433,49 @@ export default class FilePreviewModal extends React.PureComponent<Props, State> 
     handleZoomReset = () => {
         const fileInfo = this.props.fileInfos[this.state.imageIndex];
         this.setScale(this.state.imageIndex, FilePreviewModal.getDefaultScaleForFile(fileInfo));
+    };
+
+    private setRotation = (index: number, rotation: number) => {
+        this.setState((prevState) => ({
+            rotation: {
+                ...prevState.rotation,
+                [index]: rotation,
+            },
+        }));
+    };
+
+    handleRotateClockwise = () => {
+        const currentRotation = this.state.rotation[this.state.imageIndex] ?? 0;
+        this.setRotation(this.state.imageIndex, (currentRotation + 90) % 360);
+    };
+
+    handleRotateCounterClockwise = () => {
+        const currentRotation = this.state.rotation[this.state.imageIndex] ?? 0;
+        this.setRotation(this.state.imageIndex, (currentRotation + 270) % 360);
+    };
+
+    private toggleFlipHorizontal = () => {
+        this.setState((prevState) => {
+            const index = prevState.imageIndex;
+            return {
+                flipHorizontal: {
+                    ...prevState.flipHorizontal,
+                    [index]: !prevState.flipHorizontal[index],
+                },
+            };
+        });
+    };
+
+    private toggleFlipVertical = () => {
+        this.setState((prevState) => {
+            const index = prevState.imageIndex;
+            return {
+                flipVertical: {
+                    ...prevState.flipVertical,
+                    [index]: !prevState.flipVertical[index],
+                },
+            };
+        });
     };
 
     // Native (non-passive) wheel handler so preventDefault actually suppresses
@@ -573,6 +632,7 @@ export default class FilePreviewModal extends React.PureComponent<Props, State> 
 
         let content;
         let zoomBar;
+        let imageControlsBar;
 
         if (isFileInfo(fileInfo) && fileInfo.archived) {
             content = (
@@ -594,10 +654,27 @@ export default class FilePreviewModal extends React.PureComponent<Props, State> 
                             canDownloadFiles={this.props.canDownloadFiles}
                             scale={currentScale}
                             translate={currentTranslate}
+                            rotation={this.state.rotation[this.state.imageIndex] ?? 0}
+                            flipHorizontal={Boolean(this.state.flipHorizontal[this.state.imageIndex])}
+                            flipVertical={Boolean(this.state.flipVertical[this.state.imageIndex])}
                             onWheel={this.handleImageWheel}
                             onMouseDown={this.handleImageMouseDown}
                             isZoomed={currentScale !== defaultScale}
                             isDragging={this.state.isDragging}
+                        />
+                    );
+                    imageControlsBar = (
+                        <ImageControlsBar
+                            canZoomIn={currentScale < FilePreviewModal.getMaxScaleForFile(fileInfo)}
+                            canZoomOut={currentScale > ZoomSettings.MIN_SCALE}
+                            isFlipHorizontal={Boolean(this.state.flipHorizontal[this.state.imageIndex])}
+                            isFlipVertical={Boolean(this.state.flipVertical[this.state.imageIndex])}
+                            handleZoomIn={this.handleZoomIn}
+                            handleZoomOut={this.handleZoomOut}
+                            handleRotateClockwise={this.handleRotateClockwise}
+                            handleRotateCounterClockwise={this.handleRotateCounterClockwise}
+                            handleFlipHorizontal={this.toggleFlipHorizontal}
+                            handleFlipVertical={this.toggleFlipVertical}
                         />
                     );
                     zoomBar = (
@@ -748,12 +825,15 @@ export default class FilePreviewModal extends React.PureComponent<Props, State> 
                                     'file-preview-modal__content',
                                     {
                                         'file-preview-modal__content-scrollable': (!isFileInfo(fileInfo) || !fileInfo.archived) && this.state.loaded[this.state.imageIndex] && (fileType === FileTypes.PDF),
+                                        'file-preview-modal__content-with-image-controls': Boolean(imageControlsBar),
+                                        'file-preview-modal__content-dragging': this.state.isDragging,
                                     },
                                 )}
                                 onClick={this.handleBgClose}
                             >
                                 {content}
                             </div>
+                            {imageControlsBar}
                             { this.props.isMobileView &&
                                 <FilePreviewModalFooter
                                     post={this.props.post}

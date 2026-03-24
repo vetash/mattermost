@@ -18,29 +18,58 @@ interface Props {
     canDownloadFiles: boolean;
     scale?: number;
     translate?: {x: number; y: number};
+    rotation?: number;
+    flipHorizontal?: boolean;
+    flipVertical?: boolean;
     isZoomed?: boolean;
     isDragging?: boolean;
     onWheel?: (e: WheelEvent) => void;
     onMouseDown?: (e: React.MouseEvent<HTMLElement>) => void;
 }
 
-function buildTransform(scale?: number, translate?: {x: number; y: number}): string | undefined {
+function buildTransform(
+    scale?: number,
+    translate?: {x: number; y: number},
+    rotation = 0,
+    flipHorizontal = false,
+    flipVertical = false,
+): string | undefined {
     const hasScale = scale !== undefined && scale !== 1;
     const hasTranslate = translate && (translate.x !== 0 || translate.y !== 0);
-    if (!hasScale && !hasTranslate) {
+    const hasRotation = rotation !== 0;
+    const hasFlip = flipHorizontal || flipVertical;
+    if (!hasScale && !hasTranslate && !hasRotation && !hasFlip) {
         return undefined;
     }
     const parts: string[] = [];
     if (hasTranslate) {
         parts.push(`translate(${translate.x}px, ${translate.y}px)`);
     }
-    if (hasScale) {
-        parts.push(`scale(${scale})`);
+    if (hasRotation) {
+        parts.push(`rotate(${rotation}deg)`);
+    }
+    if (hasScale || hasFlip) {
+        const scaleValue = scale ?? 1;
+        const scaleX = flipHorizontal ? -scaleValue : scaleValue;
+        const scaleY = flipVertical ? -scaleValue : scaleValue;
+        parts.push(`scale(${scaleX}, ${scaleY})`);
     }
     return parts.join(' ');
 }
 
-export default function ImagePreview({fileInfo, canDownloadFiles, scale, translate, isZoomed, isDragging, onWheel, onMouseDown}: Props) {
+export default function ImagePreview({
+    fileInfo,
+    canDownloadFiles,
+    scale,
+    translate,
+    rotation,
+    flipHorizontal,
+    flipVertical,
+    isZoomed,
+    isDragging,
+    onWheel,
+    onMouseDown,
+}: Props) {
     const isExternalFile = !fileInfo.id;
 
     // React's synthetic wheel events are passive by default in modern React, so
@@ -66,7 +95,7 @@ export default function ImagePreview({fileInfo, canDownloadFiles, scale, transla
         previewUrl = fileInfo.has_preview_image ? getFilePreviewUrl(fileInfo.id) : fileUrl;
     }
 
-    const transform = buildTransform(scale, translate);
+    const transform = buildTransform(scale, translate, rotation, flipHorizontal, flipVertical);
     const imgStyle: React.CSSProperties = {};
     if (transform) {
         imgStyle.transform = transform;
