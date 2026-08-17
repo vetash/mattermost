@@ -34,9 +34,12 @@ export default function MessageWithAdditionalContent({
     const hasPlugin = post.type && pluginPostTypes && Object.hasOwn(pluginPostTypes, post.type);
     const {locale} = useIntl();
     let msg;
-    const messageWrapper = (
+    const forwardedPost = post.props?.forwarded_post as {comment?: string} | undefined;
+    const forwardedComment = typeof forwardedPost?.comment === 'string' ? forwardedPost.comment.trim() : '';
+    const messagePost = forwardedPost ? {...post, message: forwardedComment, props: {}} : post;
+    const messageWrapper = forwardedPost && !forwardedComment ? null : (
         <PostMessageView
-            post={post}
+            post={messagePost}
             isRHS={isRHS}
             compactDisplay={compactDisplay}
             isChannelAutotranslated={isChannelAutotranslated}
