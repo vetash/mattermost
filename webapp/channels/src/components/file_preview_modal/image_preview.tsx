@@ -127,6 +127,26 @@ export default function ImagePreview({
         );
     }
 
+    if (isExternalFile) {
+        return (
+            <span
+                ref={wrapperRef as React.RefObject<HTMLSpanElement>}
+                className={wrapperClassName}
+                onMouseDown={onMouseDown}
+            >
+                <img
+                    className={imgClassName}
+                    loading='lazy'
+                    data-testid='imagePreview'
+                    alt={'preview url image'}
+                    src={previewUrl}
+                    style={imgStyle}
+                    draggable={false}
+                />
+            </span>
+        );
+    }
+
     const finalImgStyle: React.CSSProperties = {...imgStyle};
     if (getFileType(fileInfo.extension) === FileTypes.SVG) {
         finalImgStyle.width = fileInfo.width;

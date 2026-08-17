@@ -80,7 +80,7 @@ describe('components/view_image/ImagePreview', () => {
 
         render(<ImagePreview {...props}/>);
 
-        expect(screen.getByTestId('imagePreview')).toHaveStyle('transform: scale(2)');
+        expect(screen.getByTestId('imagePreview')).toHaveStyle('transform: scale(2, 2)');
     });
 
     test('should not apply transform when scale is 1', () => {
@@ -126,16 +126,18 @@ describe('components/view_image/ImagePreview', () => {
         expect(screen.getByTestId('imagePreview')).toHaveAttribute('src', props.fileInfo.link);
     });
 
-    test('should apply transform style', () => {
+    test('should apply rotation and flip transform style', () => {
         const props = {
             ...baseProps,
-            transform: 'rotate(90deg) scale(1.2, 1.2)',
+            scale: 1.2,
+            rotation: 90,
+            flipHorizontal: true,
         };
 
         render(
             <ImagePreview {...props}/>,
         );
 
-        expect(screen.getByTestId('imagePreview')).toHaveStyle({transform: props.transform});
+        expect(screen.getByTestId('imagePreview')).toHaveStyle({transform: 'rotate(90deg) scale(-1.2, 1.2)'});
     });
 });
