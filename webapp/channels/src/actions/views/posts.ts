@@ -2,17 +2,20 @@
 // See LICENSE.txt for license information.
 
 import type {Channel} from '@mattermost/types/channels';
+import type {FileInfo} from '@mattermost/types/files';
 import type {Post, PostMetadata} from '@mattermost/types/posts';
 
 import {logError} from 'mattermost-redux/actions/errors';
 import * as PostActions from 'mattermost-redux/actions/posts';
+import {Client4} from 'mattermost-redux/client';
 import {Permissions} from 'mattermost-redux/constants';
+import {getChannel} from 'mattermost-redux/selectors/entities/channels';
 import {getLicense} from 'mattermost-redux/selectors/entities/general';
 import {getAssociatedGroupsForReferenceByMention} from 'mattermost-redux/selectors/entities/groups';
 import {isCustomGroupsEnabled} from 'mattermost-redux/selectors/entities/preferences';
 import {haveIChannelPermission, haveICurrentChannelPermission} from 'mattermost-redux/selectors/entities/roles';
 import {getCurrentTeam} from 'mattermost-redux/selectors/entities/teams';
-import {getCurrentUserId} from 'mattermost-redux/selectors/entities/users';
+import {getCurrentUserId, getUser} from 'mattermost-redux/selectors/entities/users';
 
 import {getPermalinkURL} from 'selectors/urls';
 
@@ -52,6 +55,9 @@ export function forwardPost(post: Post, channel: Channel, message = ''): ActionF
 
         const relativePermaLink = getPermalinkURL(state, currentTeam.id, post.id);
         const permaLink = `${getSiteURL()}${relativePermaLink}`;
+        const originalChannel = getChannel(state, post.channel_id);
+        const originalUser = getUser(state, post.user_id);
+        const originalDisplayName = originalUser?.nickname || [originalUser?.first_name, originalUser?.last_name].filter(Boolean).join(' ') || originalUser?.username || post.user_id;
 
         const license = getLicense(state);
         const isLDAPEnabled = license?.IsLicensed === 'true' && license?.LDAPGroups === 'true';
@@ -67,12 +73,29 @@ export function forwardPost(post: Post, channel: Channel, message = ''): ActionF
         const time = getTimestamp();
         const userId = currentUserId;
 
-        newPost.message = message ? `${message}\n${permaLink}` : permaLink;
+        const copiedFiles: FileInfo[] = post.file_ids?.length ? await Client4.copyFileInfosForPost(post.id) : [];
+        const copiedFileIds = copiedFiles.map((file) => file.id);
+
+        newPost.message = message;
         newPost.pending_post_id = `${userId}:${time}`;
         newPost.user_id = userId;
         newPost.create_at = time;
         newPost.metadata = {} as PostMetadata;
-        newPost.props = {};
+        newPost.props = {
+            forwarded_post: {
+                original_post_id: post.id,
+                original_channel_id: post.channel_id,
+                original_channel_type: originalChannel?.type || '',
+                original_channel_display_name: originalChannel?.display_name || '',
+                original_user_id: post.user_id,
+                original_username: originalUser?.username || '',
+                original_user_display_name: originalDisplayName,
+                original_message: post.message,
+                original_create_at: post.create_at,
+                original_permalink: permaLink,
+                original_file_ids: copiedFileIds,
+            },
+        };
 
         if (!useChannelMentions && containsAtChannel(newPost.message, {checkAllMentions: true})) {
             newPost.props.mentionHighlightDisabled = true;
@@ -90,7 +113,11 @@ export function forwardPost(post: Post, channel: Channel, message = ''): ActionF
 
         newPost = hookResult.data!;
 
-        return dispatch(PostActions.createPost(newPost, []));
+        if (copiedFileIds.length) {
+            newPost.file_ids = copiedFileIds;
+        }
+
+        return dispatch(PostActions.createPost(newPost, copiedFiles));
     };
 }
 

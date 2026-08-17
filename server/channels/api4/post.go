@@ -31,6 +31,7 @@ func (api *API) InitPost() {
 	api.BaseRoutes.Post.Handle("/thread", api.APISessionRequired(getPostThread)).Methods(http.MethodGet)
 	api.BaseRoutes.Post.Handle("/info", api.APISessionRequired(getPostInfo)).Methods(http.MethodGet)
 	api.BaseRoutes.Post.Handle("/files/info", api.APISessionRequired(getFileInfosForPost)).Methods(http.MethodGet)
+	api.BaseRoutes.Post.Handle("/files/copy", api.APISessionRequired(copyFileInfosForPost)).Methods(http.MethodPost)
 	api.BaseRoutes.PostsForChannel.Handle("", api.APISessionRequired(getPostsForChannel)).Methods(http.MethodGet)
 	api.BaseRoutes.PostsForUser.Handle("/flagged", api.APISessionRequired(getFlaggedPostsForUser)).Methods(http.MethodGet)
 
@@ -1639,6 +1640,47 @@ func getFileInfosForPost(c *Context, w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Cache-Control", "max-age=2592000, private")
 	w.Header().Set(model.HeaderEtagServer, model.GetEtagForFileInfos(infos))
 	if _, err := w.Write(js); err != nil {
+		c.Logger.Warn("Error while writing response", mlog.Err(err))
+	}
+}
+
+func copyFileInfosForPost(c *Context, w http.ResponseWriter, r *http.Request) {
+	c.RequirePostId()
+	if c.Err != nil {
+		return
+	}
+
+	post, appErr, _ := c.App.GetPostIfAuthorized(c.AppContext, c.Params.PostId, c.AppContext.Session(), false)
+	if appErr != nil {
+		c.Err = appErr
+		return
+	}
+
+	if len(post.FileIds) == 0 {
+		if err := json.NewEncoder(w).Encode([]*model.FileInfo{}); err != nil {
+			c.Logger.Warn("Error while writing response", mlog.Err(err))
+		}
+		return
+	}
+
+	if c.App.Config().FeatureFlags.PermissionPolicies && !c.App.HasPermissionToFileAction(c.AppContext, c.AppContext.Session().UserId, c.AppContext.Session().Roles, post.ChannelId, model.AccessControlPolicyActionDownloadFileAttachment) {
+		c.Err = model.NewAppError("copyFileInfosForPost", "api.file.get_file.abac_denied.app_error", nil, "", http.StatusForbidden)
+		return
+	}
+
+	newFileIds, appErr := c.App.CopyFileInfos(c.AppContext, c.AppContext.Session().UserId, post.FileIds)
+	if appErr != nil {
+		c.Err = appErr
+		return
+	}
+
+	fileInfos, err := c.App.Srv().Store().FileInfo().GetByIds(newFileIds, false, false, true)
+	if err != nil {
+		c.Err = model.NewAppError("copyFileInfosForPost", "api.file.copy_file_infos.get_copied.app_error", nil, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	if err := json.NewEncoder(w).Encode(fileInfos); err != nil {
 		c.Logger.Warn("Error while writing response", mlog.Err(err))
 	}
 }
