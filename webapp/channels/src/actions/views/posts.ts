@@ -28,6 +28,24 @@ import type {ActionFuncAsync} from 'types/store';
 
 import {runMessageWillBePostedHooks} from '../hooks';
 
+function neutralizeMentionsForFallback(message: string): string {
+    return message.replace(/@(?=\w|channel\b|all\b|here\b)/g, '@\u200b');
+}
+
+function buildForwardedPostFallback(comment: string, authorName: string, channelName: string | undefined, originalMessage: string, fileCount: number): string {
+    const header = channelName ? 'Forwarded message from ' + authorName + ' in ~' + channelName : 'Forwarded message from ' + authorName;
+    const originalText = originalMessage.trim();
+    const fallbackParts = [comment.trim(), header];
+
+    if (originalText) {
+        fallbackParts.push(neutralizeMentionsForFallback(originalText));
+    } else if (fileCount > 0) {
+        fallbackParts.push(fileCount === 1 ? '[Attachment]' : '[' + fileCount + ' attachments]');
+    }
+
+    return fallbackParts.filter(Boolean).join('\n\n');
+}
+
 export function editPost(post: Post): ActionFuncAsync<Post> {
     return async (dispatch) => {
         const result = await dispatch(PostActions.editPost(post));
@@ -76,7 +94,7 @@ export function forwardPost(post: Post, channel: Channel, message = ''): ActionF
         const copiedFiles: FileInfo[] = post.file_ids?.length ? await Client4.copyFileInfosForPost(post.id) : [];
         const copiedFileIds = copiedFiles.map((file) => file.id);
 
-        newPost.message = message;
+        newPost.message = buildForwardedPostFallback(message, originalDisplayName, originalChannel?.display_name, post.message, copiedFileIds.length);
         newPost.pending_post_id = `${userId}:${time}`;
         newPost.user_id = userId;
         newPost.create_at = time;
@@ -94,6 +112,7 @@ export function forwardPost(post: Post, channel: Channel, message = ''): ActionF
                 original_create_at: post.create_at,
                 original_permalink: permaLink,
                 original_file_ids: copiedFileIds,
+                comment: message.trim(),
             },
         };
 

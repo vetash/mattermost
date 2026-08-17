@@ -32,7 +32,7 @@ import InteractiveMessages from '../interactive_messages';
 export type Props = {
     post: Post;
     pluginPostWillRenderEmbedComponents?: PostWillRenderEmbedComponent[];
-    children?: JSX.Element;
+    children?: React.ReactNode;
     isEmbedVisible?: boolean;
     options?: Partial<TextFormattingOptions>;
     appsEnabled: boolean;
