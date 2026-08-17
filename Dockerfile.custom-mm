@@ -1,0 +1,11 @@
+FROM mattermost/mattermost-team-edition:latest
+
+USER root
+
+COPY --chown=2000:2000 .docker/mm/mattermost/bin /mattermost/bin
+COPY --chown=2000:2000 .docker/mm/mattermost/client /mattermost/client
+COPY --chown=2000:2000 .docker/mm/mattermost/i18n /mattermost/i18n
+COPY --chown=2000:2000 .docker/mm/mattermost/fonts /mattermost/fonts
+COPY --chown=2000:2000 .docker/mm/mattermost/templates /mattermost/templates
+
+USER mattermost

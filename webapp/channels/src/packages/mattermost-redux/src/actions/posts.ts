@@ -744,10 +744,17 @@ export function getPosts(channelId: string, page = 0, perPage = Posts.POST_CHUNK
     };
 }
 
-export function getPostsUnread(channelId: string, fetchThreads = true, collapsedThreadsExtended = false): ActionFuncAsync<PostList> {
+export function getPostsUnread(
+    channelId: string,
+    fetchThreads = true,
+    collapsedThreadsExtended = false,
+    options: {skipRecentPosts?: boolean} = {},
+): ActionFuncAsync<PostList> {
     return async (dispatch, getState) => {
         const state = getState();
-        const shouldLoadRecent = getUnreadScrollPositionPreference(state) === Preferences.UNREAD_SCROLL_POSITION_START_FROM_NEWEST;
+        const shouldLoadRecent =
+            getUnreadScrollPositionPreference(state) === Preferences.UNREAD_SCROLL_POSITION_START_FROM_NEWEST &&
+            !options.skipRecentPosts;
         const collapsedThreadsEnabled = isCollapsedThreadsEnabled(state);
         const userId = getCurrentUserId(state);
 

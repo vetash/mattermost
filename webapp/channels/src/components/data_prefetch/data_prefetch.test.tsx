@@ -120,6 +120,7 @@ describe('/components/data_prefetch', () => {
     });
 
     test('should fetch channels in priority order', async () => {
+        jest.useFakeTimers();
         const props = {
             ...defaultProps,
             prefetchQueueObj: {
@@ -138,7 +139,7 @@ describe('/components/data_prefetch', () => {
         wrapper.setProps({currentChannelId: 'currentChannelId'});
         await Promise.resolve(true);
 
-        expect(mockQueue).toHaveLength(5); // current channel, mentioned channels, unread channels
+        expect(mockQueue).toHaveLength(3); // current channel, mentioned channels
         expect(instance.prefetchPosts).not.toHaveBeenCalled();
 
         mockQueue.shift()!();
@@ -153,6 +154,9 @@ describe('/components/data_prefetch', () => {
         expect(instance.prefetchPosts).toHaveBeenCalledTimes(3);
         expect(instance.prefetchPosts).toHaveBeenCalledWith('mentionChannel1');
 
+        jest.runOnlyPendingTimers();
+        expect(mockQueue).toHaveLength(2);
+
         mockQueue.shift()!();
         expect(instance.prefetchPosts).toHaveBeenCalledTimes(4);
         expect(instance.prefetchPosts).toHaveBeenCalledWith('unreadChannel0');
@@ -160,6 +164,8 @@ describe('/components/data_prefetch', () => {
         mockQueue.shift()!();
         expect(instance.prefetchPosts).toHaveBeenCalledTimes(5);
         expect(instance.prefetchPosts).toHaveBeenCalledWith('unreadChannel1');
+
+        jest.useRealTimers();
     });
 
     test('should cancel fetch and requeue channels when prefetch queue changes', async () => {
@@ -180,16 +186,12 @@ describe('/components/data_prefetch', () => {
         wrapper.setProps({currentChannelId: 'currentChannelId'});
         await Promise.resolve(true);
 
-        expect(mockQueue).toHaveLength(4);
+        expect(mockQueue).toHaveLength(1);
         expect(instance.prefetchPosts).not.toHaveBeenCalled();
 
         mockQueue.shift()!();
         expect(instance.prefetchPosts).toHaveBeenCalledTimes(1);
         expect(instance.prefetchPosts).toHaveBeenCalledWith('currentChannelId');
-
-        mockQueue.shift()!();
-        expect(instance.prefetchPosts).toHaveBeenCalledTimes(2);
-        expect(instance.prefetchPosts).toHaveBeenCalledWith('unreadChannel0');
 
         wrapper.setProps({
             prefetchQueueObj: {
@@ -205,20 +207,48 @@ describe('/components/data_prefetch', () => {
         expect(mockQueue).toHaveLength(4);
 
         mockQueue.shift()!();
-        expect(instance.prefetchPosts).toHaveBeenCalledTimes(3);
+        expect(instance.prefetchPosts).toHaveBeenCalledTimes(2);
         expect(instance.prefetchPosts).toHaveBeenCalledWith('mentionChannel0');
 
         mockQueue.shift()!();
-        expect(instance.prefetchPosts).toHaveBeenCalledTimes(4);
+        expect(instance.prefetchPosts).toHaveBeenCalledTimes(3);
         expect(instance.prefetchPosts).toHaveBeenCalledWith('mentionChannel1');
 
         mockQueue.shift()!();
-        expect(instance.prefetchPosts).toHaveBeenCalledTimes(5);
+        expect(instance.prefetchPosts).toHaveBeenCalledTimes(4);
         expect(instance.prefetchPosts).toHaveBeenCalledWith('unreadChannel2');
 
         mockQueue.shift()!();
-        expect(instance.prefetchPosts).toHaveBeenCalledTimes(6);
+        expect(instance.prefetchPosts).toHaveBeenCalledTimes(5);
         expect(instance.prefetchPosts).toHaveBeenCalledWith('unreadChannel3');
+    });
+
+    test('should cap initial prefetch to 5 channels and delay medium priority', async () => {
+        jest.useFakeTimers();
+        const props = {
+            ...defaultProps,
+            prefetchQueueObj: {
+                1: ['mentionChannel0', 'mentionChannel1', 'mentionChannel2', 'mentionChannel3'],
+                2: ['unreadChannel0', 'unreadChannel1', 'unreadChannel2'],
+            },
+        };
+        const wrapper = shallow<DataPrefetch>(
+            <DataPrefetch {...props}/>,
+        );
+
+        const instance = wrapper.instance();
+        instance.prefetchPosts = jest.fn();
+
+        wrapper.setProps({currentChannelId: 'currentChannelId'});
+        await Promise.resolve(true);
+
+        // current + four high-priority = 5 initial.
+        // One medium channel is delayed and added later due to remaining capacity.
+        expect(mockQueue).toHaveLength(5);
+        jest.runOnlyPendingTimers();
+        expect(mockQueue).toHaveLength(6);
+
+        jest.useRealTimers();
     });
 
     test('should skip making request for posts if a request was made', async () => {
