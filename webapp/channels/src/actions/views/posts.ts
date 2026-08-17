@@ -2,10 +2,12 @@
 // See LICENSE.txt for license information.
 
 import type {Channel} from '@mattermost/types/channels';
+import type {FileInfo} from '@mattermost/types/files';
 import type {Post, PostMetadata} from '@mattermost/types/posts';
 
 import {logError} from 'mattermost-redux/actions/errors';
 import * as PostActions from 'mattermost-redux/actions/posts';
+import {Client4} from 'mattermost-redux/client';
 import {Permissions} from 'mattermost-redux/constants';
 import {getChannel} from 'mattermost-redux/selectors/entities/channels';
 import {getLicense} from 'mattermost-redux/selectors/entities/general';
@@ -71,6 +73,9 @@ export function forwardPost(post: Post, channel: Channel, message = ''): ActionF
         const time = getTimestamp();
         const userId = currentUserId;
 
+        const copiedFiles: FileInfo[] = post.file_ids?.length ? await Client4.copyFileInfosForPost(post.id) : [];
+        const copiedFileIds = copiedFiles.map((file) => file.id);
+
         newPost.message = message;
         newPost.pending_post_id = `${userId}:${time}`;
         newPost.user_id = userId;
@@ -88,7 +93,7 @@ export function forwardPost(post: Post, channel: Channel, message = ''): ActionF
                 original_message: post.message,
                 original_create_at: post.create_at,
                 original_permalink: permaLink,
-                original_file_ids: post.file_ids || [],
+                original_file_ids: copiedFileIds,
             },
         };
 
@@ -108,7 +113,11 @@ export function forwardPost(post: Post, channel: Channel, message = ''): ActionF
 
         newPost = hookResult.data!;
 
-        return dispatch(PostActions.createPost(newPost, []));
+        if (copiedFileIds.length) {
+            newPost.file_ids = copiedFileIds;
+        }
+
+        return dispatch(PostActions.createPost(newPost, copiedFiles));
     };
 }
 

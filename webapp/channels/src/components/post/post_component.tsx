@@ -767,7 +767,8 @@ function PostComponent(props: Props) {
     }
 
     // Don't show file attachments for concealed burn-on-read posts (attachments only fetched after reveal)
-    const showFileAttachments = post.file_ids && post.file_ids.length > 0 && !props.isPostBeingEdited && !showConcealedPlaceholder;
+    const isForwardedPost = Boolean(post.props?.forwarded_post);
+    const showFileAttachments = post.file_ids && post.file_ids.length > 0 && !isForwardedPost && !props.isPostBeingEdited && !showConcealedPlaceholder;
     const redactedFileCount = post.metadata?.redacted_file_count ?? 0;
 
     return (

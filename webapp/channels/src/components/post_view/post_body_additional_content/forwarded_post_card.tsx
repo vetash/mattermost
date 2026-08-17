@@ -6,8 +6,12 @@ import {FormattedMessage, useIntl} from 'react-intl';
 
 import type {Post} from '@mattermost/types/posts';
 
+import FileAttachmentListContainer from 'components/file_attachment_list';
+import ProfilePicture from 'components/profile_picture';
 import PostMessageView from 'components/post_view/post_message_view';
 import Timestamp from 'components/timestamp';
+
+import * as Utils from 'utils/utils';
 
 import './forwarded_post_card.scss';
 
@@ -51,6 +55,7 @@ export default function ForwardedPostCard({post}: Props) {
 
     const authorName = forwarded.original_user_display_name || forwarded.original_username || forwarded.original_user_id;
     const channelName = forwarded.original_channel_display_name;
+    const forwardedFileIds = forwarded.original_file_ids?.length ? forwarded.original_file_ids : (post.file_ids || []);
     const forwardedMessagePost: Post = {
         ...post,
         id: `${post.id}_forwarded`,
@@ -64,9 +69,9 @@ export default function ForwardedPostCard({post}: Props) {
             embeds: [],
             emojis: [],
             files: [],
-            images: {},
+            images: post.metadata?.images || {},
         },
-        file_ids: forwarded.original_file_ids || [],
+        file_ids: forwardedFileIds,
     };
 
     return (
@@ -93,9 +98,13 @@ export default function ForwardedPostCard({post}: Props) {
             </div>
             <div className='forwarded-post-card__content'>
                 <div className='forwarded-post-card__header'>
-                    <span className='forwarded-post-card__avatar'>
-                        {authorName.charAt(0).toUpperCase()}
-                    </span>
+                    <ProfilePicture
+                        size='sm'
+                        src={Utils.imageURLForUser(forwarded.original_user_id)}
+                        userId={forwarded.original_user_id}
+                        username={forwarded.original_username}
+                        wrapperClass='forwarded-post-card__avatar'
+                    />
                     <span className='forwarded-post-card__author'>{authorName}</span>
                     <Timestamp
                         value={forwarded.original_create_at}
@@ -116,6 +125,14 @@ export default function ForwardedPostCard({post}: Props) {
                     isChannelAutotranslated={false}
                     disableInteractions={true}
                 />
+                {forwardedFileIds.length > 0 && (
+                    <div className='forwarded-post-card__files'>
+                        <FileAttachmentListContainer
+                            post={post}
+                            disableActions={true}
+                        />
+                    </div>
+                )}
             </div>
         </div>
     );

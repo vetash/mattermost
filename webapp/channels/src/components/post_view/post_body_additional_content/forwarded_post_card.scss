@@ -35,17 +35,11 @@
     }
 
     &__avatar {
-        display: inline-flex;
-        width: 22px;
-        height: 22px;
-        align-items: center;
-        justify-content: center;
-        border-radius: 50%;
-        background: var(--button-bg);
-        color: var(--button-color);
-        font-size: 12px;
-        font-weight: 600;
-        line-height: 22px;
+        flex: 0 0 auto;
+
+        .status {
+            display: none;
+        }
     }
 
     &__author {
@@ -57,6 +51,15 @@
     &__time {
         color: rgba(var(--center-channel-color-rgb), 0.56);
         font-size: 12px;
+    }
+
+    &__files {
+        margin-top: 8px;
+
+        .post-image__columns {
+            margin-top: 0;
+            margin-bottom: 0;
+        }
     }
 
     .post-message__text {

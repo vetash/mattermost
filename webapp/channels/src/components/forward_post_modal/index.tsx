@@ -3,14 +3,14 @@
 
 import classNames from 'classnames';
 import React, {useCallback, useRef, useState, useMemo} from 'react';
-import {FormattedList, FormattedMessage, useIntl} from 'react-intl';
+import {useIntl} from 'react-intl';
 import {useDispatch, useSelector} from 'react-redux';
 import type {OnChangeValue} from 'react-select';
 
 import {GenericModal} from '@mattermost/components';
 import type {Post} from '@mattermost/types/posts';
 
-import {General, Permissions} from 'mattermost-redux/constants';
+import {Permissions} from 'mattermost-redux/constants';
 import {makeGetChannel} from 'mattermost-redux/selectors/entities/channels';
 import {haveIChannelPermission} from 'mattermost-redux/selectors/entities/roles';
 import {getCurrentTeam} from 'mattermost-redux/selectors/entities/teams';
@@ -20,7 +20,6 @@ import type {ActionResult} from 'mattermost-redux/types/actions';
 import {openDirectChannelToUserId} from 'actions/channel_actions';
 import {joinChannelById, switchToChannel} from 'actions/views/channel';
 import {forwardPost} from 'actions/views/posts';
-import NotificationBox from 'components/notification_box';
 import ForwardedPostCard from 'components/post_view/post_body_additional_content/forwarded_post_card';
 
 import Constants from 'utils/constants';
@@ -51,8 +50,6 @@ const ForwardPostModal = ({onExited, post}: Props) => {
     const channel = useSelector((state: GlobalState) => getChannel(state, post.channel_id));
     const originalUser = useSelector((state: GlobalState) => getUser(state, post.user_id));
     const currentTeam = useSelector(getCurrentTeam);
-
-    const isPrivateConversation = channel?.type !== Constants.OPEN_CHANNEL;
 
     const [comment, setComment] = useState('');
     const [bodyHeight, setBodyHeight] = useState<number>(0);
@@ -136,45 +133,6 @@ const ForwardPostModal = ({onExited, post}: Props) => {
             },
         },
     };
-
-    let notification;
-    if (isPrivateConversation) {
-        let notificationText;
-        if (channel?.type === General.PRIVATE_CHANNEL) {
-            const channelName = `~${channel.display_name}`;
-            notificationText = (
-                <FormattedMessage
-                    id='forward_post_modal.notification.private_channel'
-                    defaultMessage='This message is from a private channel. Forwarding will copy its content from <strong>{channelName}</strong> to the selected conversation.'
-                    values={{
-                        channelName,
-                        strong: (x: React.ReactNode) => <strong>{x}</strong>,
-                    }}
-                />
-            );
-        } else {
-            const allParticipants = channel?.display_name.split(', ') || [];
-            const participants = allParticipants.map((participant) => <strong key={participant}>{participant}</strong>);
-
-            notificationText = (
-                <FormattedMessage
-                    id='forward_post_modal.notification.dm_or_gm'
-                    defaultMessage='This message is from a private conversation with {participants}. Forwarding will copy its content to the selected conversation.'
-                    values={{
-                        participants: <FormattedList value={participants}/>,
-                    }}
-                />
-            );
-        }
-
-        notification = (
-            <NotificationBox
-                variant={'info'}
-                text={notificationText}
-                id={'forward_post'}
-            />
-        );
-    }
 
     const handlePostError = (error: React.ReactNode) => {
         setPostError(error);
@@ -263,7 +221,6 @@ const ForwardPostModal = ({onExited, post}: Props) => {
                     value={selectedChannel}
                     currentBodyHeight={bodyHeight}
                 />
-                {isPrivateConversation && notification}
                 <ForwardPostCommentInput
                     canForwardPost={canForwardPost}
                     channelId={selectedChannelId}
