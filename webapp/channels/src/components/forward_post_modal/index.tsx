@@ -8,28 +8,25 @@ import {useDispatch, useSelector} from 'react-redux';
 import type {OnChangeValue} from 'react-select';
 
 import {GenericModal} from '@mattermost/components';
-import type {Post, PostPreviewMetadata} from '@mattermost/types/posts';
+import type {Post} from '@mattermost/types/posts';
 
 import {General, Permissions} from 'mattermost-redux/constants';
 import {makeGetChannel} from 'mattermost-redux/selectors/entities/channels';
 import {haveIChannelPermission} from 'mattermost-redux/selectors/entities/roles';
 import {getCurrentTeam} from 'mattermost-redux/selectors/entities/teams';
+import {getUser} from 'mattermost-redux/selectors/entities/users';
 import type {ActionResult} from 'mattermost-redux/types/actions';
 
 import {openDirectChannelToUserId} from 'actions/channel_actions';
 import {joinChannelById, switchToChannel} from 'actions/views/channel';
 import {forwardPost} from 'actions/views/posts';
-import {getPermalinkURL} from 'selectors/urls';
-
 import NotificationBox from 'components/notification_box';
-import PostMessagePreview from 'components/post_view/post_message_preview';
+import ForwardedPostCard from 'components/post_view/post_body_additional_content/forwarded_post_card';
 
 import Constants from 'utils/constants';
-import {getSiteURL} from 'utils/url';
-
 import type {GlobalState} from 'types/store';
 
-import ForwardPostChannelSelect, {makeSelectedChannelOption} from './forward_post_channel_select';
+import ForwardPostChannelSelect from './forward_post_channel_select';
 import type {ChannelOption} from './forward_post_channel_select';
 import ForwardPostCommentInput from './forward_post_comment_input';
 
@@ -44,7 +41,6 @@ type Props = {
     post: Post;
 };
 
-const noop = () => {};
 
 const ForwardPostModal = ({onExited, post}: Props) => {
     const {formatMessage} = useIntl();
@@ -53,10 +49,8 @@ const ForwardPostModal = ({onExited, post}: Props) => {
     const getChannel = useMemo(() => makeGetChannel(), []);
 
     const channel = useSelector((state: GlobalState) => getChannel(state, post.channel_id));
+    const originalUser = useSelector((state: GlobalState) => getUser(state, post.user_id));
     const currentTeam = useSelector(getCurrentTeam);
-
-    const relativePermaLink = useSelector((state: GlobalState) => (currentTeam ? getPermalinkURL(state, currentTeam.id, post.id) : ''));
-    const permaLink = `${getSiteURL()}${relativePermaLink}`;
 
     const isPrivateConversation = channel?.type !== Constants.OPEN_CHANNEL;
 
@@ -85,9 +79,9 @@ const ForwardPostModal = ({onExited, post}: Props) => {
 
     const canPostInSelectedChannel = useSelector(
         (state: GlobalState) => {
-            const channelId = isPrivateConversation ? post.channel_id : selectedChannelId;
+            const channelId = selectedChannelId;
             const isDMChannel = selectedChannel?.details?.type === Constants.DM_CHANNEL;
-            const teamId = isPrivateConversation ? currentTeam?.id : selectedChannel?.details?.team_id;
+            const teamId = selectedChannel?.details?.team_id;
 
             const hasChannelPermission = haveIChannelPermission(
                 state,
@@ -100,7 +94,7 @@ const ForwardPostModal = ({onExited, post}: Props) => {
         },
     );
 
-    const canForwardPost = (isPrivateConversation || canPostInSelectedChannel) && !postError;
+    const canForwardPost = canPostInSelectedChannel && !postError;
 
     const onHide = useCallback(() => {
         onExited?.();
@@ -116,24 +110,31 @@ const ForwardPostModal = ({onExited, post}: Props) => {
         [],
     );
 
-    // since the original post has a click handler specified we should prevent any action here
-    const preventActionOnPreview = (e: React.MouseEvent) => {
-        e.preventDefault();
-        e.stopPropagation();
-    };
-
     const messagePreviewTitle = formatMessage({
         id: 'forward_post_modal.preview.title',
         defaultMessage: 'Message preview',
     });
 
-    const previewMetaData: PostPreviewMetadata = {
-        post,
-        post_id: post.id,
-        team_name: currentTeam?.name || '',
-        channel_display_name: channel?.display_name || '',
-        channel_type: channel?.type || 'O',
-        channel_id: post.channel_id,
+    const originalDisplayName = originalUser?.nickname || [originalUser?.first_name, originalUser?.last_name].filter(Boolean).join(' ') || originalUser?.username || post.user_id;
+
+    const forwardedPreviewPost: Post = {
+        ...post,
+        id: `${post.id}_forward_preview`,
+        message: comment,
+        props: {
+            forwarded_post: {
+                original_post_id: post.id,
+                original_channel_id: post.channel_id,
+                original_channel_type: channel?.type || '',
+                original_channel_display_name: channel?.display_name || '',
+                original_user_id: post.user_id,
+                original_username: originalUser?.username || '',
+                original_user_display_name: originalDisplayName,
+                original_message: post.message,
+                original_create_at: post.create_at,
+                original_file_ids: post.file_ids || [],
+            },
+        },
     };
 
     let notification;
@@ -144,7 +145,7 @@ const ForwardPostModal = ({onExited, post}: Props) => {
             notificationText = (
                 <FormattedMessage
                     id='forward_post_modal.notification.private_channel'
-                    defaultMessage='This message is from a private channel and can only be shared with <strong>{channelName}</strong>'
+                    defaultMessage='This message is from a private channel. Forwarding will copy its content from <strong>{channelName}</strong> to the selected conversation.'
                     values={{
                         channelName,
                         strong: (x: React.ReactNode) => <strong>{x}</strong>,
@@ -158,7 +159,7 @@ const ForwardPostModal = ({onExited, post}: Props) => {
             notificationText = (
                 <FormattedMessage
                     id='forward_post_modal.notification.dm_or_gm'
-                    defaultMessage='This message is from a private conversation and can only be shared with {participants}'
+                    defaultMessage='This message is from a private conversation with {participants}. Forwarding will copy its content to the selected conversation.'
                     values={{
                         participants: <FormattedList value={participants}/>,
                     }}
@@ -190,7 +191,7 @@ const ForwardPostModal = ({onExited, post}: Props) => {
             return Promise.resolve();
         }
 
-        const channelToForward = isPrivateConversation ? makeSelectedChannelOption(channel) : selectedChannel;
+        const channelToForward = selectedChannel;
 
         if (!channelToForward) {
             return Promise.resolve();
@@ -219,11 +220,7 @@ const ForwardPostModal = ({onExited, post}: Props) => {
             }
             return {data: false};
         }).then(() => {
-            // only switch channels when we are not in a private conversation
-            if (!isPrivateConversation) {
-                return dispatch(switchToChannel(channelToForward.details));
-            }
-            return {data: false};
+            return dispatch(switchToChannel(channelToForward.details));
         }).then(() => {
             onHide();
         }).catch((result) => {
@@ -232,14 +229,6 @@ const ForwardPostModal = ({onExited, post}: Props) => {
             }
         });
     };
-
-    const postPreviewFooterMessage = formatMessage({
-        id: 'forward_post_modal.preview.footer_message',
-        defaultMessage: 'Originally posted in ~{channel}',
-    },
-    {
-        channel: channel?.display_name || '',
-    });
 
     return (
         <GenericModal
@@ -269,15 +258,12 @@ const ForwardPostModal = ({onExited, post}: Props) => {
                 className={'forward-post__body'}
                 ref={measuredRef}
             >
-                {isPrivateConversation ? (
-                    notification
-                ) : (
-                    <ForwardPostChannelSelect
-                        onSelect={handleChannelSelect}
-                        value={selectedChannel}
-                        currentBodyHeight={bodyHeight}
-                    />
-                )}
+                <ForwardPostChannelSelect
+                    onSelect={handleChannelSelect}
+                    value={selectedChannel}
+                    currentBodyHeight={bodyHeight}
+                />
+                {isPrivateConversation && notification}
                 <ForwardPostCommentInput
                     canForwardPost={canForwardPost}
                     channelId={selectedChannelId}
@@ -286,22 +272,19 @@ const ForwardPostModal = ({onExited, post}: Props) => {
                     onError={handlePostError}
                     onSubmit={handleSubmit}
                     onHeightChange={onHeightChange}
-                    permaLinkLength={permaLink.length}
+                    permaLinkLength={0}
                 />
                 <div className={'forward-post__post-preview'}>
                     <span className={'forward-post__post-preview--title'}>
                         {messagePreviewTitle}
                     </span>
-                    <div
-                        className='post forward-post__post-preview--override'
-                        onClick={preventActionOnPreview}
-                    >
-                        <PostMessagePreview
-                            metadata={previewMetaData}
-                            handleFileDropdownOpened={noop}
-                            preventClickAction={true}
-                            previewFooterMessage={postPreviewFooterMessage}
-                        />
+                    <div className='post forward-post__post-preview--override'>
+                        {comment && (
+                            <div className='forward-post__comment-preview'>
+                                {comment}
+                            </div>
+                        )}
+                        <ForwardedPostCard post={forwardedPreviewPost}/>
                     </div>
                     {postError && (
                         <label

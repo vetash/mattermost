@@ -25,6 +25,8 @@ import type {TextFormattingOptions} from 'utils/text_formatting';
 import type {PostWillRenderEmbedComponent} from 'types/store/plugins';
 
 import EmbeddedBindings from '../embedded_bindings/embedded_bindings';
+
+import ForwardedPostCard from './forwarded_post_card';
 import InteractiveMessages from '../interactive_messages';
 
 export type Props = {
@@ -157,6 +159,7 @@ export default class PostBodyAdditionalContent extends React.PureComponent<Props
 
     render() {
         const embed = this.getEmbed();
+        const forwardedPostCard = <ForwardedPostCard post={this.props.post}/>;
 
         // New Interactive Messages framework — checked first per priority order.
         // When the feature flag is on, mm_blocks/blocks/cards/attachments are all
@@ -168,6 +171,7 @@ export default class PostBodyAdditionalContent extends React.PureComponent<Props
                 return (
                     <>
                         {this.props.children}
+                        {forwardedPostCard}
                         <InteractiveMessages post={this.props.post}/>
                     </>
                 );
@@ -181,6 +185,7 @@ export default class PostBodyAdditionalContent extends React.PureComponent<Props
                 return (
                     <>
                         {this.props.children}
+                        {forwardedPostCard}
                         <EmbeddedBindings
                             embeds={appEmbeds}
                             post={this.props.post}
@@ -198,12 +203,18 @@ export default class PostBodyAdditionalContent extends React.PureComponent<Props
                 <div>
                     {(toggleable && prependToggle) && this.renderToggle(true)}
                     {this.props.children}
+                    {forwardedPostCard}
                     {(toggleable && !prependToggle) && this.renderToggle(false)}
                     {this.renderEmbed(embed)}
                 </div>
             );
         }
 
-        return this.props.children;
+        return (
+            <>
+                {this.props.children}
+                {forwardedPostCard}
+            </>
+        );
     }
 }
