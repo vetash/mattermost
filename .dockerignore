@@ -5,3 +5,5 @@
 **/dist
 !server/dist/mattermost-team-linux-amd64.tar.gz
 !.docker/mm
+
+.docker/mm.backup-*
