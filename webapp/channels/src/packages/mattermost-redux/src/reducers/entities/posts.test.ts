@@ -3934,6 +3934,25 @@ describe('removeUnneededMetadata', () => {
         });
     });
 
+    it('should remove acknowledgements', () => {
+        const post = deepFreeze({
+            id: 'post',
+            metadata: {
+                acknowledgements: [
+                    {user_id: 'abcd', acknowledged_at: 123},
+                ],
+            },
+        });
+
+        const nextPost = reducers.removeUnneededMetadata(post);
+
+        expect(nextPost).not.toEqual(post);
+        expect(nextPost).toEqual({
+            id: 'post',
+            metadata: {},
+        });
+    });
+
     it('should remove OpenGraph data', () => {
         const post = deepFreeze({
             id: 'post',
@@ -4569,6 +4588,50 @@ describe('opengraph', () => {
                 post1: {'https://example.com': action.data.posts.post1.metadata.embeds[0].data},
                 post2: {'https://google.ca': action.data.posts.post2.metadata.embeds[0].data},
             });
+        });
+    });
+
+    it('should remove opengraph entries for removed root post and replies', () => {
+        const state = deepFreeze({
+            root: {'https://root.example': {title: 'root'}},
+            reply: {'https://reply.example': {title: 'reply'}},
+            other: {'https://other.example': {title: 'other'}},
+        });
+        const prevPosts = toPostsRecord({
+            root: {id: 'root', channel_id: 'channel1'},
+            reply: {id: 'reply', channel_id: 'channel1', root_id: 'root'},
+            other: {id: 'other', channel_id: 'channel2'},
+        });
+
+        const nextState = reducers.openGraph(state, {
+            type: PostTypes.POST_REMOVED,
+            data: {id: 'root', channel_id: 'channel1'},
+        }, prevPosts);
+
+        expect(nextState).toEqual({
+            other: {'https://other.example': {title: 'other'}},
+        });
+    });
+
+    it('should remove opengraph entries when leaving a team', () => {
+        const state = deepFreeze({
+            post1: {'https://one.example': {title: 'one'}},
+            post2: {'https://two.example': {title: 'two'}},
+            post3: {'https://three.example': {title: 'three'}},
+        });
+        const prevPosts = toPostsRecord({
+            post1: {id: 'post1', channel_id: 'channel1'},
+            post2: {id: 'post2', channel_id: 'channel2'},
+            post3: {id: 'post3', channel_id: 'channel3'},
+        });
+
+        const nextState = reducers.openGraph(state, {
+            type: TeamTypes.LEAVE_TEAM,
+            data: {channelIds: ['channel1', 'channel3']},
+        }, prevPosts);
+
+        expect(nextState).toEqual({
+            post2: {'https://two.example': {title: 'two'}},
         });
     });
 });

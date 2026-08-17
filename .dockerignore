@@ -1,0 +1,7 @@
+.git
+.gopath
+.gocache
+**/node_modules
+**/dist
+!server/dist/mattermost-team-linux-amd64.tar.gz
+!.docker/mm

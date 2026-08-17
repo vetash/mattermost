@@ -458,6 +458,54 @@ describe('Actions.Posts', () => {
         expect(posts[recentPost.id]).toBeTruthy();
     });
 
+    it('getPostsUnread should skip loading recent posts when skipRecentPosts is true', async () => {
+        const mockStore = configureStore({
+            entities: {
+                general: {
+                    config: {
+                        CollapsedThreads: 'always_on',
+                    },
+                },
+                preferences: {
+                    myPreferences: {
+                        'advanced_settings--unread_scroll_position': {
+                            category: 'advanced_settings',
+                            name: 'unread_scroll_position',
+                            value: Preferences.UNREAD_SCROLL_POSITION_START_FROM_NEWEST,
+                        },
+                    },
+                },
+            },
+        });
+
+        const {dispatch, getState} = mockStore;
+
+        const userId = getState().entities.users.currentUserId;
+        const channelId = TestHelper.basicChannel!.id;
+        const post = TestHelper.fakePostWithId(channelId);
+        const recentPost = TestHelper.fakePostWithId(channelId);
+
+        const response = {
+            posts: {
+                [post.id]: post,
+            },
+            order: [post.id],
+            next_post_id: recentPost.id,
+            prev_post_id: '',
+        };
+
+        nock(Client4.getUsersRoute()).
+            get(`/${userId}/channels/${channelId}/posts/unread`).
+            query(true).
+            reply(200, response);
+
+        await dispatch(Actions.getPostsUnread(channelId, true, false, {skipRecentPosts: true}));
+        const {posts} = getState().entities.posts;
+
+        expect(posts[post.id]).toBeTruthy();
+        expect(posts[recentPost.id]).toBeUndefined();
+    });
+
     it('getPostThread', async () => {
         const channelId = TestHelper.basicChannel!.id;
         const post = TestHelper.getPostMock({id: TestHelper.generateId(), channel_id: channelId, message: ''});

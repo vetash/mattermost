@@ -13,6 +13,8 @@ import {loadProfilesForSidebar} from 'actions/user_actions';
 import {Constants} from 'utils/constants';
 
 const queue = new PQueue({concurrency: 2});
+const INITIAL_PREFETCH_MAX_CHANNELS = 5;
+const INITIAL_MEDIUM_PRIORITY_DELAY_MS = 15000;
 
 type Props = {
     currentChannelId: string;
@@ -61,12 +63,16 @@ export default class DataPrefetch extends React.PureComponent<Props> {
 
         if (currentChannelId && sidebarLoaded && (!prevProps.currentChannelId || !prevProps.sidebarLoaded)) {
             queue.add(async () => this.prefetchPosts(currentChannelId));
-            this.prefetchData();
+            this.prefetchData(true);
         } else if (prevProps.prefetchQueueObj !== prefetchQueueObj) {
             clearTimeout(this.prefetchTimeout);
             await queue.clear();
             this.prefetchData();
         }
+    }
+
+    componentWillUnmount(): void {
+        clearTimeout(this.prefetchTimeout);
     }
 
     public prefetchPosts = (channelId: string) => {
@@ -81,19 +87,52 @@ export default class DataPrefetch extends React.PureComponent<Props> {
         return this.props.actions.prefetchChannelPosts(channelId, delay);
     };
 
-    private prefetchData = () => {
-        const {prefetchRequestStatus, prefetchQueueObj} = this.props;
+    private queueChannelsForPrefetch = (channelIds: string[], maxChannels = Infinity) => {
+        const {prefetchRequestStatus} = this.props;
+
+        let queued = 0;
+        for (const channelId of channelIds) {
+            if (queued >= maxChannels) {
+                break;
+            }
+
+            if (!Object.hasOwn(prefetchRequestStatus, channelId)) {
+                queue.add(async () => this.prefetchPosts(channelId));
+                queued++;
+            }
+        }
+
+        return queued;
+    };
+
+    private prefetchData = (isInitialLoad = false) => {
+        const {prefetchQueueObj} = this.props;
+        if (isInitialLoad) {
+            const highPriorityChannels = prefetchQueueObj[1] || [];
+            const mediumPriorityChannels = prefetchQueueObj[2] || [];
+            const queuedHigh = this.queueChannelsForPrefetch(highPriorityChannels, INITIAL_PREFETCH_MAX_CHANNELS);
+            const remaining = INITIAL_PREFETCH_MAX_CHANNELS - queuedHigh;
+
+            if (remaining > 0 && mediumPriorityChannels.length > 0) {
+                this.prefetchTimeout = window.setTimeout(() => {
+                    this.queueChannelsForPrefetch(mediumPriorityChannels, remaining);
+                }, INITIAL_MEDIUM_PRIORITY_DELAY_MS);
+            }
+            return;
+        }
+
+        let queued = 0;
         for (const priority in prefetchQueueObj) {
             if (!Object.hasOwn(prefetchQueueObj, priority)) {
                 continue;
             }
 
-            const priorityQueue = prefetchQueueObj[priority];
-            for (const channelId of priorityQueue) {
-                if (!Object.hasOwn(prefetchRequestStatus, channelId)) {
-                    queue.add(async () => this.prefetchPosts(channelId));
-                }
+            if (queued >= INITIAL_PREFETCH_MAX_CHANNELS) {
+                break;
             }
+
+            const remaining = INITIAL_PREFETCH_MAX_CHANNELS - queued;
+            queued += this.queueChannelsForPrefetch(prefetchQueueObj[priority], remaining);
         }
     };
 

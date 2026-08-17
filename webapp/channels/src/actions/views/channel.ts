@@ -266,7 +266,7 @@ export function loadUnreads(channelId: string, prefetch = false): ActionFuncAsyn
                 status: RequestStatus.STARTED,
             });
         }
-        const {data, error} = await dispatch(PostActions.getPostsUnread(channelId));
+        const {data, error} = await dispatch(PostActions.getPostsUnread(channelId, true, false, {skipRecentPosts: prefetch}));
         if (error) {
             if (prefetch) {
                 dispatch({

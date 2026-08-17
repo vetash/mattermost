@@ -49,7 +49,7 @@ export function removeUnneededMetadata(post: Post) {
         changed = true;
     }
 
-    if (metadata.reactions) {
+    if (metadata.acknowledgements) {
         Reflect.deleteProperty(metadata, 'acknowledgements');
         changed = true;
     }
@@ -1531,7 +1531,11 @@ function storeAcknowledgementsForPost(state: any, post: Post) {
     };
 }
 
-export function openGraph(state: RelationOneToOne<Post, Record<string, OpenGraphMetadata>> = {}, action: MMReduxAction) {
+export function openGraph(
+    state: RelationOneToOne<Post, Record<string, OpenGraphMetadata>> = {},
+    action: MMReduxAction,
+    prevPosts: Record<string, Post> = {},
+) {
     switch (action.type) {
     case PostTypes.RECEIVED_NEW_POST:
     case PostTypes.RECEIVED_POST: {
@@ -1545,11 +1549,71 @@ export function openGraph(state: RelationOneToOne<Post, Record<string, OpenGraph
         return posts.reduce(storeOpenGraphForPost, state);
     }
 
+    case PostTypes.POST_DELETED:
+    case PostTypes.POST_REMOVED: {
+        const post = action.data as Post;
+        if (!post?.id) {
+            return state;
+        }
+
+        const nextState = {...state};
+        let changed = false;
+
+        if (nextState[post.id]) {
+            Reflect.deleteProperty(nextState, post.id);
+            changed = true;
+        }
+
+        // Root post removal/deletion also removes replies from post state, so clear reply OG entries too.
+        if (!post.root_id) {
+            for (const postId of Object.keys(state)) {
+                if (prevPosts[postId]?.root_id === post.id) {
+                    Reflect.deleteProperty(nextState, postId);
+                    changed = true;
+                }
+            }
+        }
+
+        return changed ? nextState : state;
+    }
+
+    case ChannelTypes.LEAVE_CHANNEL: {
+        const channelId = action.data.id;
+        return removeOpenGraphForChannels(state, new Set([channelId]), prevPosts);
+    }
+
+    case TeamTypes.LEAVE_TEAM: {
+        const channelIds: string[] = action.data.channelIds || [];
+        if (channelIds.length === 0) {
+            return state;
+        }
+
+        return removeOpenGraphForChannels(state, new Set(channelIds), prevPosts);
+    }
+
     case UserTypes.LOGOUT_SUCCESS:
         return {};
     default:
         return state;
     }
+}
+
+function removeOpenGraphForChannels(
+    state: RelationOneToOne<Post, Record<string, OpenGraphMetadata>>,
+    channelIds: Set<string>,
+    prevPosts: Record<string, Post>,
+) {
+    let changed = false;
+    const nextState = {...state};
+
+    for (const postId of Object.keys(state)) {
+        if (channelIds.has(prevPosts[postId]?.channel_id)) {
+            Reflect.deleteProperty(nextState, postId);
+            changed = true;
+        }
+    }
+
+    return changed ? nextState : state;
 }
 
 function storeOpenGraphForPost(state: any, post: Post) {
@@ -1778,7 +1842,7 @@ export default function reducer(state: Partial<PostsState> = {}, action: MMRedux
         reactions: reactions(state.reactions, action),
 
         // Object mapping URLs to their relevant opengraph metadata for link previews
-        openGraph: openGraph(state.openGraph, action),
+        openGraph: openGraph(state.openGraph, action, state.posts || {}),
 
         // History of posts and comments
         messagesHistory: messagesHistory(state.messagesHistory, action),
