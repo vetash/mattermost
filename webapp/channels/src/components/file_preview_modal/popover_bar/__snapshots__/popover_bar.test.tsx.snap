@@ -1,5 +1,88 @@
 // Jest Snapshot v1, https://jestjs.io/docs/snapshot-testing
 
+exports[`components/file_preview_modal/popover_bar/PopoverBar should match snapshot with image transform controls enabled 1`] = `
+<div>
+  <div
+    class="modal-button-bar file-preview-modal__zoom-bar"
+    data-testid="fileCountFooter"
+  >
+    <div
+      class="modal-column"
+    >
+      <span
+        class="btn-inactive"
+      >
+        <i
+          class="icon icon-minus"
+        />
+      </span>
+      <span
+        class="btn-inactive"
+      >
+        <i
+          class="icon icon-magnify-minus"
+        />
+      </span>
+      <span
+        class="btn-inactive"
+      >
+        <i
+          class="icon icon-plus"
+        />
+      </span>
+      <span
+        class="modal-zoom-btn"
+      >
+        <a
+          aria-label="Rotate counter clockwise"
+        >
+          <i
+            class="icon icon-refresh file-preview-modal-image-controls__rotate-ccw"
+          />
+        </a>
+      </span>
+      <span
+        class="modal-zoom-btn"
+      >
+        <a
+          aria-label="Rotate clockwise"
+        >
+          <i
+            class="icon icon-refresh"
+          />
+        </a>
+      </span>
+      <span
+        class="modal-zoom-btn file-preview-modal-image-controls__flip-button active"
+      >
+        <a
+          aria-label="Flip horizontal"
+        >
+          <span
+            class="file-preview-modal-image-controls__flip-label"
+          >
+            H
+          </span>
+        </a>
+      </span>
+      <span
+        class="modal-zoom-btn file-preview-modal-image-controls__flip-button"
+      >
+        <a
+          aria-label="Flip vertical"
+        >
+          <span
+            class="file-preview-modal-image-controls__flip-label"
+          >
+            V
+          </span>
+        </a>
+      </span>
+    </div>
+  </div>
+</div>
+`;
+
 exports[`components/file_preview_modal/popover_bar/PopoverBar should match snapshot with zoom controls enabled 1`] = `
 <div>
   <div

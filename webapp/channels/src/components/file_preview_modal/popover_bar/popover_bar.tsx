@@ -1,6 +1,7 @@
 // Copyright (c) 2015-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
+import classNames from 'classnames';
 import debounce from 'lodash/debounce';
 import React from 'react';
 import {FormattedMessage} from 'react-intl';
@@ -17,6 +18,13 @@ export interface Props {
     handleZoomIn?: () => void;
     handleZoomOut?: () => void;
     handleZoomReset?: () => void;
+    showImageTransformControls?: boolean;
+    isFlipHorizontal?: boolean;
+    isFlipVertical?: boolean;
+    handleRotateClockwise?: () => void;
+    handleRotateCounterClockwise?: () => void;
+    handleFlipHorizontal?: () => void;
+    handleFlipVertical?: () => void;
 }
 
 export default class PopoverBar extends React.PureComponent<Props> {
@@ -125,6 +133,95 @@ export default class PopoverBar extends React.PureComponent<Props> {
                     {zoomInButton}
                 </WithTooltip>,
             );
+
+            if (this.props.showImageTransformControls) {
+                zoomControls.push(
+                    <WithTooltip
+                        key='rotateCounterClockwise'
+                        title={
+                            <FormattedMessage
+                                id='view_image.rotate_counter_clockwise'
+                                defaultMessage='Rotate Counter Clockwise'
+                            />
+                        }
+                    >
+                        <span className='modal-zoom-btn'>
+                            <a
+                                onClick={this.props.handleRotateCounterClockwise}
+                                aria-label='Rotate counter clockwise'
+                            >
+                                <i className='icon icon-refresh file-preview-modal-image-controls__rotate-ccw'/>
+                            </a>
+                        </span>
+                    </WithTooltip>,
+                    <WithTooltip
+                        key='rotateClockwise'
+                        title={
+                            <FormattedMessage
+                                id='view_image.rotate_clockwise'
+                                defaultMessage='Rotate Clockwise'
+                            />
+                        }
+                    >
+                        <span className='modal-zoom-btn'>
+                            <a
+                                onClick={this.props.handleRotateClockwise}
+                                aria-label='Rotate clockwise'
+                            >
+                                <i className='icon icon-refresh'/>
+                            </a>
+                        </span>
+                    </WithTooltip>,
+                    <WithTooltip
+                        key='flipHorizontal'
+                        title={
+                            <FormattedMessage
+                                id='view_image.flip_horizontal'
+                                defaultMessage='Flip Horizontal'
+                            />
+                        }
+                    >
+                        <span
+                            className={classNames(
+                                'modal-zoom-btn',
+                                'file-preview-modal-image-controls__flip-button',
+                                {active: this.props.isFlipHorizontal},
+                            )}
+                        >
+                            <a
+                                onClick={this.props.handleFlipHorizontal}
+                                aria-label='Flip horizontal'
+                            >
+                                <span className='file-preview-modal-image-controls__flip-label'>{'H'}</span>
+                            </a>
+                        </span>
+                    </WithTooltip>,
+                    <WithTooltip
+                        key='flipVertical'
+                        title={
+                            <FormattedMessage
+                                id='view_image.flip_vertical'
+                                defaultMessage='Flip Vertical'
+                            />
+                        }
+                    >
+                        <span
+                            className={classNames(
+                                'modal-zoom-btn',
+                                'file-preview-modal-image-controls__flip-button',
+                                {active: this.props.isFlipVertical},
+                            )}
+                        >
+                            <a
+                                onClick={this.props.handleFlipVertical}
+                                aria-label='Flip vertical'
+                            >
+                                <span className='file-preview-modal-image-controls__flip-label'>{'V'}</span>
+                            </a>
+                        </span>
+                    </WithTooltip>,
+                );
+            }
 
             wrappedZoomControls = (
                 <div className='modal-column'>

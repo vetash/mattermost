@@ -1455,7 +1455,7 @@ export const ZoomSettings = {
     SCALE_DELTA: 0.25,
     MIN_SCALE: 0.25,
     MAX_SCALE: 3.0,
-    MAX_SCALE_IMAGE: 2.0,
+    MAX_SCALE_IMAGE: 6.0,
 };
 
 export const DataSpillagePropertyNames = {

@@ -462,9 +462,9 @@ describe('FilePreviewModal static helpers', () => {
         expect(FilePreviewModal.getDefaultScaleForFile(pdf)).toBe(1.75);
     });
 
-    test('getMaxScaleForFile caps images at 2.0 and other files at 3.0', () => {
-        expect(FilePreviewModal.getMaxScaleForFile(TestHelper.getFileInfoMock({extension: 'png'}))).toBe(2.0);
-        expect(FilePreviewModal.getMaxScaleForFile(TestHelper.getFileInfoMock({extension: 'svg'}))).toBe(2.0);
+    test('getMaxScaleForFile caps images at 6.0 and other files at 3.0', () => {
+        expect(FilePreviewModal.getMaxScaleForFile(TestHelper.getFileInfoMock({extension: 'png'}))).toBe(6.0);
+        expect(FilePreviewModal.getMaxScaleForFile(TestHelper.getFileInfoMock({extension: 'svg'}))).toBe(6.0);
         expect(FilePreviewModal.getMaxScaleForFile(TestHelper.getFileInfoMock({extension: 'pdf'}))).toBe(3.0);
     });
 
@@ -625,10 +625,10 @@ describe('FilePreviewModal instance behavior', () => {
             return evt;
         };
 
-        test('clamps zoom-in at MAX_SCALE_IMAGE (2.0)', () => {
+        test('clamps zoom-in at MAX_SCALE_IMAGE (6.0)', () => {
             const {ref} = mountModal();
             act(() => {
-                ref.current?.setState({showZoomControls: true, loaded: {0: true}, scale: {0: 1.9}});
+                ref.current?.setState({showZoomControls: true, loaded: {0: true}, scale: {0: 5.9}});
             });
             const dummy = document.createElement('div');
             jest.spyOn(dummy, 'getBoundingClientRect').mockReturnValue({left: 0, top: 0, width: 200, height: 200, right: 200, bottom: 200, x: 0, y: 0, toJSON: () => ({})});
@@ -639,8 +639,8 @@ describe('FilePreviewModal instance behavior', () => {
                 // A second zoom-in should not push past the cap.
                 ref.current?.handleImageWheel(wheelEventOn(dummy, -100));
             });
-            expect(ref.current?.state.scale[0]).toBeLessThanOrEqual(2.0);
-            expect(ref.current?.state.scale[0]).toBeCloseTo(2.0);
+            expect(ref.current?.state.scale[0]).toBeLessThanOrEqual(6.0);
+            expect(ref.current?.state.scale[0]).toBeCloseTo(6.0);
         });
 
         test('clamps zoom-out at MIN_SCALE (0.25)', () => {

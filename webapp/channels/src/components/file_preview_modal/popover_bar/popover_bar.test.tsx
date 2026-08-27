@@ -21,4 +21,20 @@ describe('components/file_preview_modal/popover_bar/PopoverBar', () => {
         const {container} = render(<PopoverBar {...props}/>);
         expect(container).toMatchSnapshot();
     });
+
+    test('should match snapshot with image transform controls enabled', () => {
+        const props = {
+            ...defaultProps,
+            showZoomControls: true,
+            showImageTransformControls: true,
+            isFlipHorizontal: true,
+            handleRotateClockwise: jest.fn(),
+            handleRotateCounterClockwise: jest.fn(),
+            handleFlipHorizontal: jest.fn(),
+            handleFlipVertical: jest.fn(),
+        };
+
+        const {container} = render(<PopoverBar {...props}/>);
+        expect(container).toMatchSnapshot();
+    });
 });

@@ -27,7 +27,6 @@ import type {FilePreviewComponent} from 'types/store/plugins';
 import FilePreviewModalFooter from './file_preview_modal_footer/file_preview_modal_footer';
 import FilePreviewModalHeader from './file_preview_modal_header/file_preview_modal_header';
 import ImagePreview from './image_preview';
-import ImageControlsBar from './image_controls_bar';
 import PopoverBar from './popover_bar';
 import {isFileInfo, isLinkInfo} from './types';
 import type {LinkInfo} from './types';
@@ -632,7 +631,6 @@ export default class FilePreviewModal extends React.PureComponent<Props, State> 
 
         let content;
         let zoomBar;
-        let imageControlsBar;
 
         if (isFileInfo(fileInfo) && fileInfo.archived) {
             content = (
@@ -663,20 +661,6 @@ export default class FilePreviewModal extends React.PureComponent<Props, State> 
                             isDragging={this.state.isDragging}
                         />
                     );
-                    imageControlsBar = (
-                        <ImageControlsBar
-                            canZoomIn={currentScale < FilePreviewModal.getMaxScaleForFile(fileInfo)}
-                            canZoomOut={currentScale > ZoomSettings.MIN_SCALE}
-                            isFlipHorizontal={Boolean(this.state.flipHorizontal[this.state.imageIndex])}
-                            isFlipVertical={Boolean(this.state.flipVertical[this.state.imageIndex])}
-                            handleZoomIn={this.handleZoomIn}
-                            handleZoomOut={this.handleZoomOut}
-                            handleRotateClockwise={this.handleRotateClockwise}
-                            handleRotateCounterClockwise={this.handleRotateCounterClockwise}
-                            handleFlipHorizontal={this.toggleFlipHorizontal}
-                            handleFlipVertical={this.toggleFlipVertical}
-                        />
-                    );
                     zoomBar = (
                         <PopoverBar
                             scale={this.state.scale[this.state.imageIndex]}
@@ -686,6 +670,13 @@ export default class FilePreviewModal extends React.PureComponent<Props, State> 
                             handleZoomIn={this.handleZoomIn}
                             handleZoomOut={this.handleZoomOut}
                             handleZoomReset={this.handleZoomReset}
+                            showImageTransformControls={true}
+                            isFlipHorizontal={Boolean(this.state.flipHorizontal[this.state.imageIndex])}
+                            isFlipVertical={Boolean(this.state.flipVertical[this.state.imageIndex])}
+                            handleRotateClockwise={this.handleRotateClockwise}
+                            handleRotateCounterClockwise={this.handleRotateCounterClockwise}
+                            handleFlipHorizontal={this.toggleFlipHorizontal}
+                            handleFlipVertical={this.toggleFlipVertical}
                         />
                     );
                 } else if (fileType === FileTypes.VIDEO || fileType === FileTypes.AUDIO) {
@@ -825,7 +816,6 @@ export default class FilePreviewModal extends React.PureComponent<Props, State> 
                                     'file-preview-modal__content',
                                     {
                                         'file-preview-modal__content-scrollable': (!isFileInfo(fileInfo) || !fileInfo.archived) && this.state.loaded[this.state.imageIndex] && (fileType === FileTypes.PDF),
-                                        'file-preview-modal__content-with-image-controls': Boolean(imageControlsBar),
                                         'file-preview-modal__content-dragging': this.state.isDragging,
                                     },
                                 )}
@@ -833,7 +823,6 @@ export default class FilePreviewModal extends React.PureComponent<Props, State> 
                             >
                                 {content}
                             </div>
-                            {imageControlsBar}
                             { this.props.isMobileView &&
                                 <FilePreviewModalFooter
                                     post={this.props.post}

@@ -47,16 +47,6 @@
         }
     }
 
-    &__content-with-image-controls {
-        height: calc(100vh - 112px);
-        overflow: hidden;
-        cursor: grab;
-
-        @media screen and (max-width: 768px) {
-            height: calc(100% - 148px);
-        }
-    }
-
     &__content-dragging {
         cursor: grabbing;
     }
@@ -91,9 +81,24 @@
         }
     }
 
-    &__image-controls-bar {
-        position: relative;
-        z-index: 1;
+    &-image-controls {
+        &__rotate-ccw {
+            transform: scaleX(-1);
+        }
+
+        &__flip-button {
+            font-size: 12px;
+            font-weight: 600;
+
+            &.active a {
+                opacity: 1;
+                text-decoration: underline;
+            }
+        }
+
+        &__flip-label {
+            line-height: 1;
+        }
     }
 
     .modal.fade & {
